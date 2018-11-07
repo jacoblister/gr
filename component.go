@@ -605,22 +605,25 @@ func makeRenderFunc(ts ThisSetter, s string, f func() Component) *js.Object {
 	})
 }
 
+func makeEventListenerDelegate(ts ThisSetter, el *EventListener, that *This) func(event *js.Object) {
+	return func(event *js.Object) {
+		if ts != nil {
+			ts.SetThis(that.This)
+		}
+		if el.preventDefault {
+			event.Call("preventDefault")
+		}
+		if el.stopPropagation {
+			event.Call("stopPropagation")
+		}
+		el.listener(&Event{Object: event, This: that})
+	}
+}
+
 func addEventListeners(ts ThisSetter, c Component, that *This) {
 	if e, ok := c.(*Element); ok {
 		for _, l := range e.eventListeners {
-			l.delegate = func(event *js.Object) {
-				if ts != nil {
-					ts.SetThis(that.This)
-				}
-				if l.preventDefault {
-					event.Call("preventDefault")
-				}
-				if l.stopPropagation {
-					event.Call("stopPropagation")
-				}
-				l.listener(&Event{Object: event, This: that})
-			}
-
+			l.delegate = makeEventListenerDelegate(ts, l, that)
 			e.properties[l.name] = l.delegate
 
 		}
